@@ -133,7 +133,7 @@ To display which folders are currently being synchronized, enter the following c
 During initial setup, no folders will be set up for synchronization. You will see the text `No folders are set up for synchronization.` To add folders, use the following commands. The `sync` folder is inside the container, the second parameter is the folder in the cloud:
 
 ```bash
-    
+    printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
     printf "s add \"/sync/Bob\" \"/Bob\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
