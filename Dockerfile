@@ -8,7 +8,7 @@
 ### (1) Sources
 #------------------------------------------------------------------------------
 
-FROM ubuntu:26.04 AS base_stage
+FROM ubuntu:25.04 AS base_stage
 
 # Official linked website: https://github.com/pcloudcom/console-client
 # Update: https://github.com/lneely/pcloudcc-lneely
