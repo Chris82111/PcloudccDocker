@@ -70,6 +70,8 @@ WORKDIR /build
 RUN git clone ${repoUrl}
 WORKDIR /build/${repoName}
 
+# Build it with the system libraries
+#
 RUN make
 RUN make install
 
@@ -134,16 +136,62 @@ RUN make install
 # RUN make
 # RUN make install
 
+# Change rights
+ARG SETUID_ROOT="false"
+ENV SETUID_ROOT="${SETUID_ROOT}"
 
-WORKDIR /app
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh 
-
-HEALTHCHECK --interval=30s --timeout=1s --retries=1 --start-period=15s \
-  CMD pgrep -x pcloudcc >/dev/null 2>&1 || exit 1
+RUN if [ "true" = "${SETUID_ROOT}" ] ; then \
+      chown "root":"root" "/usr/local/bin/pcloudcc" && \
+      chmod u+s "/usr/local/bin/pcloudcc" ; \
+  else \
+      echo "Skipping setuid setup"; \
+  fi
 
 # Ensure graceful shutdown
 STOPSIGNAL SIGTERM
 
-ENTRYPOINT ["/entrypoint.sh"]
+HEALTHCHECK --interval=30s --timeout=1s --retries=1 --start-period=15s \
+  CMD pgrep -x pcloudcc >/dev/null 2>&1 || exit 1
+
+# Create a standard user
+# RUN groupadd --gid 1001 ubuntu && useradd --uid 1000 --gid 1001 -m user
+
+ARG UID=1000
+ARG GID=1000
+ARG UNAME="ubuntu"
+ARG GNAME="user"
+
+ENV USER="${UNAME}"
+ENV UID="${UID}"
+ENV GID="${GID}"
+
+RUN set -eux; \
+  \
+  # ---------- GROUP ----------
+  if getent group "${GNAME}" >/dev/null; then \
+      groupmod -g "${GID}" "${GNAME}"; \
+  elif getent group "${GID}" >/dev/null; then \
+      existing="$(getent group ${GID} | cut -d: -f1)"; \
+      groupmod -n "${GNAME}" "$existing"; \
+  else \
+      groupadd -g "${GID}" "${GNAME}"; \
+  fi; \
+  \
+  # ---------- USER ----------
+  if id -u "${UNAME}" >/dev/null 2>&1; then \
+      usermod -u "${UID}" -g "${GID}" "${UNAME}"; \
+  elif getent passwd "${UID}" >/dev/null; then \
+      existing="$(getent passwd ${UID} | cut -d: -f1)"; \
+      usermod -l "${UNAME}" -d "/home/${UNAME}" -m "$existing"; \
+      usermod -g "${GID}" "${UNAME}"; \
+  else \
+      useradd -m -u "${UID}" -g "${GID}" "${UNAME}"; \
+  fi
+
+WORKDIR /app
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh 
+
+USER "${UNAME}"
+ENTRYPOINT ["./entrypoint.sh"]
 

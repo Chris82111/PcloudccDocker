@@ -9,19 +9,65 @@
 
 </div>
 
-This repository enables the simple creation of a two-way synchronization of one or more folders between Linux and [pCloud](https://www.pcloud.com/). The implementation as a Docker container provides an encapsulated and easy-to-manage environment. There are no restrictions when using Windows, but the examples shown here only cover Linux. In addition to the folders to be synchronized, only a single configuration folder is required. Operation is fully automatic, but setup and login are not. For this reason, a means of interacting with the container is necessary. SSH access or another means of interaction is required.
+This repository enables the simple creation of a two-way synchronization of one or more folders between Linux and [pCloud](https://www.pcloud.com/). The implementation as a Docker container provides an encapsulated and easy-to-manage environment. There are no restrictions when using on Windows with WSL, but the examples shown here only cover Linux. In addition to the folders to be synchronized, only a single configuration folder is required. Operation is fully automatic, but setup and login are not. For this reason, a means of interacting with the container is necessary. SSH access or another means of interaction is required.
 
 ## Versions
 
-The pCloud API was published in the repository [pcloudcom/console-client](https://github.com/pcloudcom/console-client). The last changes were made more than 5 years ago when this repository was launched. The repository [lneely/pcloudcc-lneely](https://github.com/lneely/pcloudcc-lneely), which is also used here, is a continuation of the project. The Dockerfile downloads the latest repository from pcloudcc-lneely with each build and compiles it. This ensures that the latest changes and security updates are always used. As a result, new changes may break the Docker container.
+The pCloud API was published in the repository [pcloudcom/console-client](https://github.com/pcloudcom/console-client). The last changes were made more than five years ago when this repository was launched. The repository [lneely/pcloudcc-lneely](https://github.com/lneely/pcloudcc-lneely), which is also used here, is a continuation of the project. The Dockerfile downloads the latest version from pcloudcc-lneely with each build and compiles it. This ensures that the latest changes and security updates are always used. As a result, new changes may break the Docker container.
 
 ## License
 
-The pCloud APIs have been published with the license [`BSD 3-Clause "New" or "Revised" License`](https://spdx.org/licenses/BSD-3-Clause.html) in the repository [pcloudcom/console-client](https://github.com/pcloudcom/console-client).
+The pCloud APIs have been published under the license [BSD 3-Clause "New" or "Revised" License](https://spdx.org/licenses/BSD-3-Clause.html) in the repository [pcloudcom/console-client](https://github.com/pcloudcom/console-client).
+
+## Docker Requirements
+
+Before compiling the Dockerfile, it is advisable to check that all Docker settings are correct.
+
+1. The following command displays the current version of Docker; no special permissions are required. If the command generates an error, Docker is not installed and must be installed.
+   
+   ```bash
+   docker --version
+   ```
+
+2. The following command provides information about the currently running Docker containers. To execute it, the current user must belong to the `docker` group or execute the subsequent commands with `sudo` privileges.
+
+   ```bash
+   docker ps
+   ```
+
+   The successful output contains at least the heading and all running images below it.
+
+   ```bash
+   CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
+   ```
+
+   The incorrect output may look like this.
+
+   ```bash
+   Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.24/containers/json": dial unix /var/run/docker.sock: connect: permission denied
+   ```
+
+3. Alternatively, a group can be created and the current user added to that group, eliminating the need to use sudo for subsequent commands. Membership in the docker group is essentially root-equivalent access, so treat the docker group as trusted users only.
+
+   ```bash
+   sudo groupadd -f docker
+   sudo usermod -aG docker $USER
+   ```
+
+   The following commands must be used on a Synology system.
+
+   ```bash
+   # Only on a Synology system!
+   sudo synogroup --add docker
+   sudo chown root:docker /var/run/docker.sock
+   sudo synogroup --memberadd docker $USER
+   ```
+
+4. Now you must log out and log back in, for the changes to take effect.
 
 ## Example
 
-The following example shows how to set up two different folders on the system so that they are synchronized with the cloud. This assumes that the folders `Alice` and `Bob` exist in the cloud. All other settings are carried out step by step on the system. The figure shows how the individual folders interact.
+The following example shows how to set up two different folders on the system so that they are synchronized with the cloud. This assumes that the folders `Alice` and `Bob` exist in the cloud. A recommendation: if data from different users is synchronized, one container should synchronize the data from one user at a time. All other settings are carried out step by step on the system. The figure shows how the individual folders interact.
 
 ```mermaid
 stateDiagram-v2
@@ -71,15 +117,30 @@ mkdir -p "./.config/pcloud"
 
 Next, the Docker container must be built. The easiest way to do this is in the folder where the `Dockerfile` is located, i.e., directly in the cloned repository. If a different folder is used, the path to the `Dockerfile` must be specified.
 
+Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running Ubuntu:
+
 ```bash
-docker build -t chris82111/pcloudccdocker:260208 .
+docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t chris82111/pcloudccdocker:260208 .
+```
+
+- If synchronization is set up for another user, the user ID `UID` and group ID `GID` must be set correctly. These can be determined with `id <username>`. 
+  
+  The parameter `SETUID_ROOT` can be set to `true`; the default is `false`. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). Downloaded data is assigned `root` as the owner and the selected user as the group. The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
+
+  ```bash
+  docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker:260208 .
+  ```
+
+Before the next command, an old container should be removed. An error message stating that the container cannot be found can be ignored.
+
+```bash
+docker stop pcloudccContainer ; docker rm pcloudccContainer
 ```
 
 The container itself is created based on the image, which is why adjustments need to be made here. Enter your own email address here instead of `Example@example.com`:
 
 ```bash
 docker container create -it --name pcloudccContainer \
-  --user $(id -u):$(id -g) \
   --mount type=bind,source="$(pwd)/Alice",target="/sync/Alice" \
   --mount type=bind,source="$(pwd)/Bob",target="/sync/Bob" \
   --mount type=bind,source="$(pwd)/.config/pcloud",target="/home/ubuntu/.pcloud" \
@@ -118,38 +179,59 @@ Down: Everything Downloaded| Up: Everything Uploaded, status is SCANNING
 Down: Everything Downloaded| Up: Everything Uploaded, status is READY
 ```
 
+- Error messages may be displayed when exiting. The pcloudcc application creates a directory in the home directory (`ubuntu`) that contains a complete copy of the cloud. The results vary depending on the kernel. With a kernel 6.x, there were no error messages and no content in the directory. With a 3.x, there was data in the directory and the following message:
+
+  ```bash
+  fuse: reading device: Bad file descriptor  
+  ubuntu@123456789abc:/sync$ fusermount: /home/ubuntu/pCloudDrive not mounted  
+  ```
+
+  Or just an empty directory with the following message:
+
+  ```bash
+  fusermount: user has no write access to mountpoint /home/ubuntu/pCloudDrive
+  Down: Everything Downloaded| Up: Everything Uploaded, status is READY
+  fusermount: user has no write access to mountpoint /home/ubuntu/pCloudDrive
+  ```
+
 Once you have entered your password and everything works, then you can run pcloudcc as a background daemon. 
 
 ```bash
-    PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -d
+PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -d
 ```
 
 To display which folders are currently being synchronized, enter the following command:
 
 ```bash
-    printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
+printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
 During initial setup, no folders will be set up for synchronization. You will see the text `No folders are set up for synchronization.` To add folders, use the following commands. The `sync` folder is inside the container, the second parameter is the folder in the cloud:
 
 ```bash
-    printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
-    printf "s add \"/sync/Bob\" \"/Bob\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
+printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
+printf "s add \"/sync/Bob\" \"/Bob\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
 You can check whether the folders have been added successfully:
 
 ```bash
-    printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
+printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
 Once everything is set up, you can leave the container:
 
 ```bash
-    exit
+exit
 ```
 
 From now on, everything will be done automatically each time the container is started. Starting and stopping the container starts and stops synchronization.
+
+The status of the container and others can be checked with the following command. The status of the container is only updated every 30 seconds, so it may take a while for the changes to become visible. As long as a background process `pcloudcc` exists, the status is Healthy.
+
+```bash
+docker ps
+```
 
 ## List of commands
 
@@ -166,7 +248,7 @@ These commands are used to interact with Docker on the system.
 - Log into container: \
   `docker exec -it pcloudccContainer bash`  
 - Stop and remove container: \
-  `docker stop pcloudccContainer ; docker rm pcloudccContainer`
+  `docker stop pcloudccContainer && docker rm pcloudccContainer`
 
 ### Commands in the container
 

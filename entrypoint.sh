@@ -14,15 +14,17 @@ log() {
 if [ "$(id -u)" -eq 0 ]; then
     mkdir -p "/root/.pcloud"
     LOG="/root/.pcloud/log.log"
-    log "[info] Log"
-    log "[info] User: root"
 else
-    DEFAULT_USER="ubuntu"
-    mkdir -p "/home/${DEFAULT_USER}/.pcloud"
-    LOG="/home/${DEFAULT_USER}/.pcloud/log.log"
-    log "[info] Log"
-    log "[info] User: ${DEFAULT_USER}"
+	mkdir -p "${HOME}/.pcloud"
+    LOG="${HOME}/.pcloud/log.log"
 fi
+
+log "[info] Log"
+log "[info] USER    : ${USER}"
+log "[info] HOME    : ${HOME}"
+log "[dump] HOST_UID: $(id -u)"
+log "[dump] HOST_GID: $(id -g)"
+log "[dump] whoami  : $(whoami)"
 
 trap cleanup SIGTERM SIGINT
 
