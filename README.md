@@ -43,21 +43,22 @@ Before compiling the Dockerfile, it is advisable to check that all Docker settin
    Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.24/containers/json": dial unix /var/run/docker.sock: connect: permission denied
    ```
 
-3. Alternatively, a group can be created and the current user added to that group, eliminating the need to use sudo for subsequent commands. Membership in the docker group is essentially root-equivalent access, so treat the docker group as trusted users only.
+3. Alternatively, a group can be created and the current user added to that group, eliminating the need to use sudo for subsequent commands. Membership in the docker group is essentially root-equivalent access, so treat the docker group as trusted users only. Depending on your system, you must select one of the following:
 
-   ```bash
-   sudo groupadd -f docker
-   sudo usermod -aG docker "${USER}"
-   ```
+   1. Standard Linux system   
 
-   The following commands must be used on a [Synology](https://www.synology.com/en-uk) system.
+      ```bash
+      sudo groupadd -f docker
+      sudo usermod -aG docker "${USER}"
+      ```
 
-   ```bash
-   # Only on a Synology system!
-   sudo synogroup --add docker
-   sudo chown root:docker /var/run/docker.sock
-   sudo synogroup --memberadd docker "${USER}"
-   ```
+   2. The following commands must be used on a [Synology](https://www.synology.com/en-uk) system.
+
+      ```bash
+      sudo synogroup --add docker
+      sudo chown root:docker /var/run/docker.sock
+      sudo synogroup --memberadd docker "${USER}"
+      ```
 
 4. Now you must log out and log back in, for the changes to take effect.
 
