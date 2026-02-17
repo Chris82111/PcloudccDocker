@@ -114,6 +114,8 @@ mkdir -p "./.config/pcloud"
 
 Next, the Docker container must be built. The easiest way to do this is in the folder where the [Dockerfile](./Dockerfile) is located, i.e., directly in the cloned repository. If a different folder is used, the path to the Dockerfile must be specified.
 
+A parameter mentioned here, `--build-arg TAG=""`, can be used to select a specific version of the repository. An empty or missing parameter selects the latest version.
+
 The synchronization can run under two different user contexts; (1) as the current user, or (2) as the current user with the effective user ID set to root (setuid).
 
 1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
