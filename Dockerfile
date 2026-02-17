@@ -70,6 +70,17 @@ WORKDIR /build
 RUN git clone ${repoUrl}
 WORKDIR /build/${repoName}
 
+# The TAG build parameter can be used to select a specific tag from the repository.
+ARG TAG=
+ENV TAG="${TAG}"
+
+RUN if [ -n "${TAG}" ] ; then \
+    git fetch --tags ; \
+    git checkout "${TAG}" ; \
+  else \
+    echo "git selects the latest version of the default branch."; \
+  fi
+
 # Build it with the system libraries
 #
 RUN make
