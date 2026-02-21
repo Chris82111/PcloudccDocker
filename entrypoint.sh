@@ -1,5 +1,10 @@
 #!/bin/bash
 
+red="\033[1;31m"
+yellow="\033[1;33m"
+cyan="\033[1;36m"
+normal="\033[0m" 
+
 cleanup() {
     log_info "Cleanup"
     printf "f\n" | script -q -c "pcloudcc -k" /dev/null
@@ -7,36 +12,23 @@ cleanup() {
     exit 143
 }
 
-red="\033[1;31m"
-yellow="\033[1;33m"
-cyan="\033[1;36m"
-normal="\033[0m" 
-
 log_info() {
   # Print colored to terminal
   echo -e "[info] $*"
 
   # Append plain text to log file
   # Strip ANSI codes before writing to file
-  echo -e "$*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
+  echo -e "[info] $*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
 }
 
 log_warn() {
-  # Print colored to terminal
   echo -e "[${yellow}warn${normal}] $*"
-
-  # Append plain text to log file
-  # Strip ANSI codes before writing to file
-  echo -e "$*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
+  echo -e "[warn] $*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
 }
 
 log_errs() {
-  # Print colored to terminal
   echo -e "[${red}errs${normal}] $*"
-
-  # Append plain text to log file
-  # Strip ANSI codes before writing to file
-  echo -e "$*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
+  echo -e "[errs] $*" | sed 's/\x1b\[[0-9;]*m//g' >> "${LOG}"
 }
 
 if [ "$(id -u)" -eq 0 ] ; then
@@ -47,7 +39,7 @@ else
     LOG="${HOME}/.pcloud/log.log"
 fi
 
-log_info "Log"
+log_info "Log $(date +%Y%m%d%H%M%S)"
 log_info "USER    : ${USER}"
 log_info "HOME    : ${HOME}"
 log_info "HOST_UID: $(id -u)"
@@ -74,7 +66,7 @@ if [ -n "${EMAIL}" ] ; then
                 
         HAS_PROBLEMS=true
 
-        for ((i=1; i<=4; i++)); do
+        for ((i=1; i<=4; i++)) ; do
         
             ERR1=false
             ERR2=false
@@ -83,12 +75,12 @@ if [ -n "${EMAIL}" ] ; then
         
             OUTPUT=$(printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null)
                     
-            if echo "$OUTPUT" | grep -q "List Sync Folders failed: Unable to connect to UNIX socket"; then
+            if echo "$OUTPUT" | grep -q "List Sync Folders failed: Unable to connect to UNIX socket" ; then
                 ERR1=true
                 log_warn "${i} No user is logged in"
             fi
 
-            if echo "$OUTPUT" | grep -q "No synchronized folders found."; then
+            if echo "$OUTPUT" | grep -q "No synchronized folders found." ; then
                 ERR2=true
                 log_warn "${i} No folders are set up for synchronization."
             fi
