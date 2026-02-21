@@ -118,17 +118,19 @@ Next, the Docker container must be built. The easiest way to do this is in the f
 
 A parameter mentioned here, `--build-arg TAG=""`, can be used to select a specific version of the repository. An empty or missing parameter selects the latest version.
 
+If multiple pCloud accounts are to be synchronized on one system, the commands must be executed for each user.
+
+The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). However, this is the only way to synchronize a folder that was created by root, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
+
 The synchronization can run under two different user contexts; (1) as the current user, or (2) as the current user with the effective user ID set to root (setuid).
 
 1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
 
    ```bash
-   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t chris82111/pcloudccdocker:260216 .
+   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=false -t chris82111/pcloudccdocker .
    ```
 
 2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly. These can be determined with `id <username>`. 
-  
-   The parameter `SETUID_ROOT` can be set to `true`; the default is `false`. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). Downloaded data is assigned `root` as the owner and the selected user as the group. The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
 
    Set user name:
 
@@ -145,7 +147,7 @@ The synchronization can run under two different user contexts; (1) as the curren
    Creates the container:
 
    ```bash
-   id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker:260216 .
+   id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker .
    ```
 
    Changes the owner of the created folders:
@@ -174,7 +176,7 @@ docker container create -it --name pcloudccContainer \
   --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined \
   --restart always  \
   --env EMAIL='Example@example.com' \
-  chris82111/pcloudccdocker:260216
+  chris82111/pcloudccdocker
 ```
 
 The container must then be started:
@@ -195,13 +197,13 @@ Log in with the following command:
 PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -p -s
 ```
 
-The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you can end the login by pressing the two keys "Ctrl" + "c" simultaneously:
+The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you must end the login by pressing the two keys "Ctrl" + "c" simultaneously:
 
 ```bash
 Down: Everything Downloaded| Up: Everything Uploaded, status is LOGIN_REQUIRED
 logging in
-event 1234567890
-event 1234567890
+event 123456789a
+event 123456789a
 Down: Everything Downloaded| Up: Everything Uploaded, status is SCANNING
 Down: Everything Downloaded| Up: Everything Uploaded, status is READY
 ```
@@ -240,6 +242,18 @@ printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev
 printf "s add \"/sync/Bob\" \"/Bob\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
+- If something is wrong, a drive can be removed. To do this, list the drives and find the corresponding folder ID with:
+
+  ```bash
+  printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
+  ```
+
+  The drive can be removed using the following command with the ID. Replace the ID 123456789ab with your displayed ID:
+
+  ```bash
+  printf "s rm 123456789ab\nq\n" | script -q -c "pcloudcc -k" /dev/null
+  ```
+
 You can check whether the folders have been added successfully:
 
 ```bash
@@ -258,6 +272,18 @@ The status of the container and others can be checked with the following command
 
 ```bash
 docker ps
+```
+
+The following command can be used to check how much storage space is being used by Docker:
+
+```bash
+docker system df
+```
+
+To free up storage space, the following command can be used to release only unused (dangling) resources. The additional parameter `-a` removes all unused images.
+
+```bash
+docker system prune
 ```
 
 ## List of commands
