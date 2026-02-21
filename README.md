@@ -197,7 +197,7 @@ Log in with the following command:
 PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -p -s
 ```
 
-The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you must end the login by pressing the two keys "Ctrl" + "c" simultaneously:
+The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you must end the login by pressing the two keys "Ctrl" + "c" simultaneously to proceed:
 
 ```bash
 Down: Everything Downloaded| Up: Everything Uploaded, status is LOGIN_REQUIRED
