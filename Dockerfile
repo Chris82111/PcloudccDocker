@@ -107,10 +107,10 @@ RUN make install
 
 
 RUN if [ "true" = "${SETUID_ROOT}" ] ; then \
-      chown "root":"root" "/usr/local/bin/pcloudcc" && \
-      chmod u+s "/usr/local/bin/pcloudcc" ; \
+    chown "root":"root" "/usr/local/bin/pcloudcc" && \
+    chmod u+s "/usr/local/bin/pcloudcc" ; \
   else \
-      echo "Skipping setuid setup"; \
+    echo "Skipping setuid setup"; \
   fi
 
 
@@ -123,17 +123,17 @@ FROM base_stage AS runtime_stage
 COPY --from=build_pcloudcc_stage /usr/local/bin/pcloudcc /usr/local/bin/pcloudcc
 
 RUN apt-get update && apt-get install -y \
-    libcurl4 \
-    libssl3 \
-    ca-certificates \
-    libboost-program-options1.83.0 \
-    libfuse2 \
-    libreadline8 \
-    libsqlite3-0 \
-    libmbedtls21 \
-    libmbedx509-7 \
-    libmbedcrypto16 \
-    && rm -rf /var/lib/apt/lists/*
+  libcurl4 \
+  libssl3 \
+  ca-certificates \
+  libboost-program-options1.83.0 \
+  libfuse2 \
+  libreadline8 \
+  libsqlite3-0 \
+  libmbedtls21 \
+  libmbedx509-7 \
+  libmbedcrypto16 \
+  && rm -rf /var/lib/apt/lists/*
 
 
 # Creates a standard user or changes it based on the settings.
@@ -141,23 +141,23 @@ RUN set -eux; \
   \
   # ---------- GROUP ----------
   if getent group "${GNAME}" >/dev/null; then \
-      groupmod -g "${GID}" "${GNAME}"; \
+    groupmod -g "${GID}" "${GNAME}"; \
   elif getent group "${GID}" >/dev/null; then \
-      existing="$(getent group ${GID} | cut -d: -f1)"; \
-      groupmod -n "${GNAME}" "$existing"; \
+    existing="$(getent group ${GID} | cut -d: -f1)"; \
+    groupmod -n "${GNAME}" "$existing"; \
   else \
-      groupadd -g "${GID}" "${GNAME}"; \
+    groupadd -g "${GID}" "${GNAME}"; \
   fi; \
   \
   # ---------- USER ----------
   if id -u "${UNAME}" >/dev/null 2>&1; then \
-      usermod -u "${UID}" -g "${GID}" "${UNAME}"; \
+    usermod -u "${UID}" -g "${GID}" "${UNAME}"; \
   elif getent passwd "${UID}" >/dev/null; then \
-      existing="$(getent passwd ${UID} | cut -d: -f1)"; \
-      usermod -l "${UNAME}" -d "/home/${UNAME}" -m "$existing"; \
-      usermod -g "${GID}" "${UNAME}"; \
+    existing="$(getent passwd ${UID} | cut -d: -f1)"; \
+    usermod -l "${UNAME}" -d "/home/${UNAME}" -m "$existing"; \
+    usermod -g "${GID}" "${UNAME}"; \
   else \
-      useradd -m -u "${UID}" -g "${GID}" "${UNAME}"; \
+    useradd -m -u "${UID}" -g "${GID}" "${UNAME}"; \
   fi
 
 
