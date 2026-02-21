@@ -104,6 +104,8 @@ stateDiagram-v2
     }
 ```
 
+It is best to start in a folder where you want to try out the example. Change to any directory. You can clone the repository and change to the downloaded folder, or you can download the necessary files ([Dockerfile](./Dockerfile), [entrypoint.sh](./entrypoint.sh)).
+
 Three folders are required on the system: two that are synchronized and one for configuration. A Docker container without volumes or mounts does not retain any data after termination. The paths in the example can be freely selected and thus customized.
 
 ```bash
