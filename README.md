@@ -130,7 +130,7 @@ The synchronization can run under two different user contexts; (1) as the curren
    docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=false -t chris82111/pcloudccdocker .
    ```
 
-2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly. These can be determined with `id <username>`. 
+2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly, but are determined automatically by specifying the user name.
 
    Set user name:
 
