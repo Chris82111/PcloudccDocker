@@ -122,6 +122,8 @@ If multiple pCloud accounts are to be synchronized on one system, the commands m
 
 The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). However, this is the only way to synchronize a folder that was created by root, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
 
+To ensure that the latest version is used, the system should be cleaned of old images or the `--no-cache` option should be used.
+
 The synchronization can run under two different user contexts; (1) as the current user, or (2) as another user.
 
 1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
@@ -298,6 +300,8 @@ To free up storage space, the following command can be used to release only unus
 ```bash
 docker system prune
 ```
+
+Deleting is particularly important because the individual steps involved in creating the image are cached. If the image is recreated, no new code is downloaded from GitHub. Even if a new image is created years later, the old version is used without retrieving the latest changes.
 
 ## List of commands
 
