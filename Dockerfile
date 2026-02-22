@@ -106,6 +106,7 @@ RUN apt-get update && apt-get install -y \
   libmbedtls21 \
   libmbedx509-7 \
   libmbedcrypto16 \
+  fuse \
   && rm -rf /var/lib/apt/lists/*
 
 
