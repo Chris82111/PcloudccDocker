@@ -13,42 +13,12 @@
 
 FROM ubuntu:25.04 AS base_stage
 
-# Official website: https://github.com/pcloudcom/console-client
-# Update: https://github.com/lneely/pcloudcc-lneely
-ENV repoUrl="https://github.com/lneely/pcloudcc-lneely.git"
-
-ENV repoName="pcloudcc-lneely"
-
-# The TAG build parameter can be used to select a specific tag from the repository.
-ARG TAG=
-ENV TAG="${TAG}"
-
 # Set the environment variable for non-interactive installation
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Optional parameter for changing the time zone
 ARG TZ=UTC
 ENV TZ=${TZ} 
-
-# If true, changes the owner and sets the SETUID flag.
-ARG SETUID_ROOT="false"
-ENV SETUID_ROOT="${SETUID_ROOT}"
-
-# Optional Pramerter, it is recommended to overwrite it with the respective number of the future user.
-ARG UID=1000
-ENV UID="${UID}"
-
-# Optional Pramerter, it is recommended to overwrite it with the respective number of the future user.
-ARG GID=1000
-ENV GID="${GID}"
-
-# The username in the Docker container can be different; only the user and group numbers are important. 
-ARG USE_USER="ubuntu"
-ENV USE_USER="${USE_USER}"
-ARG USE_GROUP="user"
-ENV USE_GROUP="${USE_GROUP}"
-
-ENV USER="${USE_USER}"
 
 
 #------------------------------------------------------------------------------
@@ -68,36 +38,37 @@ RUN apt-get update && apt-get install -y \
   libfuse-dev \
   libsqlite3-dev \
   libreadline-dev \
-  && rm -rf /var/lib/apt/lists/*
-
-
-# Ubuntu 26.04 uses: 3.6.5-0.1ubuntu2
-RUN apt-get update && apt-get install -y \
   libmbedtls-dev \
   && rm -rf /var/lib/apt/lists/*
+
 
 # Check MbedTLS version
 RUN version=$(dpkg -s libmbedtls-dev | grep Version | awk '{print $2}') && \
   major=$(echo $version | cut -d. -f1) && \
   minor=$(echo $version | cut -d. -f2) && \
-  if [ "$major" -lt 3 ] || { [ "$major" -eq 3 ] && [ "$minor" -lt 6 ]; }; then \
+  if [ "$major" -lt 3 ] || { [ "$major" -eq 3 ] && [ "$minor" -lt 6 ] ; } ; then \
     echo "ERROR: MbedTLS version 3.6 or higher required, found $version"; \
     exit 1; \
   fi
 
-RUN apt-get update && apt-get install -y \
-  fuse \
-  && rm -rf /var/lib/apt/lists/*
+# Official website: https://github.com/pcloudcom/console-client
+# Update: https://github.com/lneely/pcloudcc-lneely
+ENV repoUrl="https://github.com/lneely/pcloudcc-lneely.git"
+ENV repoName="pcloudcc-lneely"
 
 WORKDIR /build
 RUN git clone ${repoUrl}
 WORKDIR /build/${repoName}
 
+# The TAG build parameter can be used to select a specific tag from the repository.
+ARG TAG=
+ENV TAG="${TAG}"
+
 RUN if [ -n "${TAG}" ] ; then \
     git fetch --tags ; \
     git checkout "${TAG}" ; \
   else \
-    echo "git selects the latest version of the default branch."; \
+    echo "git selects the latest version of the default branch." ; \
   fi
 
 # Build it with the system libraries
@@ -106,11 +77,15 @@ RUN make
 RUN make install
 
 
+# If true, changes the owner and sets the SETUID flag.
+ARG SETUID_ROOT="false"
+ENV SETUID_ROOT="${SETUID_ROOT}"
+
 RUN if [ "true" = "${SETUID_ROOT}" ] ; then \
     chown "root":"root" "/usr/local/bin/pcloudcc" && \
     chmod u+s "/usr/local/bin/pcloudcc" ; \
   else \
-    echo "Skipping setuid setup"; \
+    echo "Skipping setuid setup" ; \
   fi
 
 
@@ -119,8 +94,6 @@ RUN if [ "true" = "${SETUID_ROOT}" ] ; then \
 #------------------------------------------------------------------------------
 
 FROM base_stage AS runtime_stage
-
-COPY --from=build_pcloudcc_stage /usr/local/bin/pcloudcc /usr/local/bin/pcloudcc
 
 RUN apt-get update && apt-get install -y \
   libcurl4 \
@@ -134,6 +107,30 @@ RUN apt-get update && apt-get install -y \
   libmbedx509-7 \
   libmbedcrypto16 \
   && rm -rf /var/lib/apt/lists/*
+
+
+COPY --from=build_pcloudcc_stage /usr/local/bin/pcloudcc /usr/local/bin/pcloudcc
+
+WORKDIR /app
+COPY entrypoint.sh entrypoint.sh
+RUN chmod +x entrypoint.sh 
+
+
+# Optional Pramerter, it is recommended to overwrite it with the respective number of the future user.
+ARG UID=1000
+ENV UID="${UID}"
+
+# Optional Pramerter, it is recommended to overwrite it with the respective number of the future user.
+ARG GID=1000
+ENV GID="${GID}"
+
+# The username in the Docker container can be different; only the user and group numbers are important. 
+ARG USE_USER="ubuntu"
+ENV USE_USER="${USE_USER}"
+ARG USE_GROUP="user"
+ENV USE_GROUP="${USE_GROUP}"
+
+ENV USER="${USE_USER}"
 
 # Validate combination
 RUN \
@@ -166,11 +163,6 @@ RUN set -eux; \
   else \
     useradd -m -u "${UID}" -g "${GID}" "${USE_USER}" ; \
   fi
-
-
-WORKDIR /app
-COPY entrypoint.sh entrypoint.sh
-RUN chmod +x entrypoint.sh 
 
 
 #------------------------------------------------------------------------------
