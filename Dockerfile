@@ -43,12 +43,12 @@ ARG GID=1000
 ENV GID="${GID}"
 
 # The username in the Docker container can be different; only the user and group numbers are important. 
-ARG UNAME="ubuntu"
-ENV UNAME="${UNAME}"
-ARG GNAME="user"
-ENV GNAME="${GNAME}"
+ARG USE_USER="ubuntu"
+ENV USE_USER="${USE_USER}"
+ARG USE_GROUP="user"
+ENV USE_GROUP="${USE_GROUP}"
 
-ENV USER="${UNAME}"
+ENV USER="${USE_USER}"
 
 
 #------------------------------------------------------------------------------
@@ -135,29 +135,36 @@ RUN apt-get update && apt-get install -y \
   libmbedcrypto16 \
   && rm -rf /var/lib/apt/lists/*
 
+# Validate combination
+RUN \
+  if { [ "$UID" -eq 0 ] && [ "$USE_USER" != "root" ] ; } || \
+     { [ "$USE_USER" = "root" ] && [ "$UID" -ne 0 ] ; } ; then \
+    echo "Invalid UID/USE_USER combination"; \
+    exit 1; \
+  fi
 
 # Creates a standard user or changes it based on the settings.
 RUN set -eux; \
   \
   # ---------- GROUP ----------
-  if getent group "${GNAME}" >/dev/null; then \
-    groupmod -g "${GID}" "${GNAME}"; \
-  elif getent group "${GID}" >/dev/null; then \
-    existing="$(getent group ${GID} | cut -d: -f1)"; \
-    groupmod -n "${GNAME}" "$existing"; \
+  if getent group "${USE_GROUP}" >/dev/null ; then \
+    groupmod -g "${GID}" "${USE_GROUP}" ; \
+  elif getent group "${GID}" >/dev/null ; then \
+    existing="$(getent group ${GID} | cut -d: -f1)" ; \
+    groupmod -n "${USE_GROUP}" "$existing" ; \
   else \
-    groupadd -g "${GID}" "${GNAME}"; \
-  fi; \
+    groupadd -g "${GID}" "${USE_GROUP}" ; \
+  fi ; \
   \
   # ---------- USER ----------
-  if id -u "${UNAME}" >/dev/null 2>&1; then \
-    usermod -u "${UID}" -g "${GID}" "${UNAME}"; \
-  elif getent passwd "${UID}" >/dev/null; then \
-    existing="$(getent passwd ${UID} | cut -d: -f1)"; \
-    usermod -l "${UNAME}" -d "/home/${UNAME}" -m "$existing"; \
-    usermod -g "${GID}" "${UNAME}"; \
+  if id -u "${USE_USER}" >/dev/null 2>&1 ; then \
+    usermod -u "${UID}" -g "${GID}" "${USE_USER}" ; \
+  elif getent passwd "${UID}" >/dev/null ; then \
+    existing="$(getent passwd ${UID} | cut -d: -f1)" ; \
+    usermod -l "${USE_USER}" -d "/home/${USE_USER}" -m "$existing" ; \
+    usermod -g "${GID}" "${USE_USER}" ; \
   else \
-    useradd -m -u "${UID}" -g "${GID}" "${UNAME}"; \
+    useradd -m -u "${UID}" -g "${GID}" "${USE_USER}" ; \
   fi
 
 
@@ -182,6 +189,6 @@ HEALTHCHECK --interval=30s --timeout=1s --retries=1 --start-period=15s \
   CMD pgrep -x pcloudcc >/dev/null 2>&1 || exit 1
 
 WORKDIR /app
-USER "${UNAME}"
+USER "${USE_USER}"
 ENTRYPOINT ["./entrypoint.sh"]
 
