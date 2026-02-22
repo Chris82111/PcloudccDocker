@@ -122,7 +122,7 @@ If multiple pCloud accounts are to be synchronized on one system, the commands m
 
 The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). However, this is the only way to synchronize a folder that was created by root, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
 
-The synchronization can run under two different user contexts; (1) as the current user, or (2) as the current user with the effective user ID set to root (setuid).
+The synchronization can run under two different user contexts; (1) as the current user, or (2) as another user.
 
 1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
 
@@ -130,7 +130,7 @@ The synchronization can run under two different user contexts; (1) as the curren
    docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=false -t chris82111/pcloudccdocker .
    ```
 
-2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly, but are determined automatically by specifying the user name.
+2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly, but are determined automatically by specifying the user name, root is also valid.
 
    Set user name:
 
@@ -150,7 +150,7 @@ The synchronization can run under two different user contexts; (1) as the curren
    id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker .
    ```
 
-   Changes the owner of the created folders:
+   Depending on the application, it may be necessary to adjust the rights accordingly. Changes the owner of the created folders:
 
    ```bash
    id "${FOR_USER}" && 
@@ -191,7 +191,20 @@ Connect to a running container to execute commands:
 docker exec -it pcloudccContainer bash
 ```
 
-Log in with the following command:
+Before setting up pCloud, the permissions of the folders mounted in the container can be checked. The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again.
+
+```bash
+ll /sync/
+```
+
+- An output might then look like this:
+
+  ```bash
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:02 Alice/
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:02 Bob/
+  ```
+
+Log in to pCloud with the following command:
 
 ```bash
 PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -p -s
