@@ -165,6 +165,29 @@ RUN set -eux; \
     useradd -m -u "${UID}" -g "${GID}" "${USE_USER}" ; \
   fi
 
+
+ARG SUPP_GIDS=""
+
+# ---------- SUPPLEMENTARY GROUPS ----------
+RUN set -eux; \
+  if [ -n "${SUPP_GIDS}" ] ; then \
+    OLDIFS="$IFS"; \
+    IFS=','; \
+    for gid in ${SUPP_GIDS} ; do \
+      if [ "$gid" != "${GID}" ] ; then \
+        if getent group "$gid" >/dev/null ; then \
+          grp="$(getent group $gid | cut -d: -f1)" ; \
+        else \
+          grp="grp_$gid" ; \
+          groupadd -g "$gid" "$grp" ; \
+        fi ; \
+        usermod -a -G "$gid" "${USE_USER}" ; \
+      fi ; \
+    done ; \
+    IFS="$OLDIFS" ; \
+  fi
+  
+
   # Redeclare
   ARG TAG
   ENV TAG="${TAG}"

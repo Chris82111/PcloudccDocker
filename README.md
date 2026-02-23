@@ -129,7 +129,7 @@ The synchronization can run under two different user contexts; (1) as the curren
 1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
 
    ```bash
-   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=false -t chris82111/pcloudccdocker .
+   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) --build-arg SETUID_ROOT=false --build-arg SUPP_GIDS="$(id -G | tr ' ' ',')" -t chris82111/pcloudccdocker .
    ```
 
 2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly, but are determined automatically by specifying the user name. The ID can also be set to 0 (root), but then the name must also be specified: `--build-arg USE_USER=root`.
@@ -149,7 +149,7 @@ The synchronization can run under two different user contexts; (1) as the curren
    Creates the container:
 
    ```bash
-   id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker .
+   id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true --build-arg SUPP_GIDS="$(id -G ${FOR_USER} | tr ' ' ',')" -t chris82111/pcloudccdocker .
    ```
 
    Depending on the application, it may be necessary to adjust the rights accordingly. Changes the owner of the created folders:
