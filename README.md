@@ -193,17 +193,31 @@ Connect to a running container to execute commands:
 docker exec -it pcloudccContainer bash
 ```
 
-Before setting up pCloud, the permissions of the folders mounted in the container can be checked. The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again.
+Before setting up pCloud, the settings of the folders mounted in the container can be checked.
+
+1. The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again. So, stop the container, log out, log back in, and start the container. The permissions should then be updated. 
+
+2. Another problem may occur if the owner of the folder does not match. The problem has been seen on a Synology with a customized ACL. Make sure that the user matches. 
 
 ```bash
 ll /sync/
 ```
 
-- An output might then look like this:
+- A working output might then look like this:
 
   ```bash
-  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:02 Alice/
-  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:02 Bob/
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Alice/
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Bob/
+  ```
+
+  The following outputs, where the user does not match, can be problematic. pcloudcc will then be unable to add the folder for synchronization:
+
+  ```bash
+  # drwxrwxrwx 1 1026   user 0 Feb 21 21:21 Bob/
+  ```
+
+  ```bash
+  # drwxrwxrwx 1 root   root  28 Feb 21 21:12 Bob/
   ```
 
 Log in to pCloud with the following command:

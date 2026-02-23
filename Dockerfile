@@ -165,6 +165,13 @@ RUN set -eux; \
     useradd -m -u "${UID}" -g "${GID}" "${USE_USER}" ; \
   fi
 
+  # Redeclare
+  ARG TAG
+  ENV TAG="${TAG}"
+
+  ARG SETUID_ROOT
+  ENV SETUID_ROOT="${SETUID_ROOT}"
+
 
 #------------------------------------------------------------------------------
 ### (4)
