@@ -120,7 +120,8 @@ A parameter mentioned here, `--build-arg TAG=""`, can be used to select a specif
 
 If multiple pCloud accounts are to be synchronized on one system, the commands must be executed for each user.
 
-The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). However, this is the only way to synchronize a folder that was created by root, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
+The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). Currently, pcloudcc only uses the UID and GID internally, not the effective IDs. For this reason, it is necessary to set the access rights for folders correctly, even though setuid is set.
+Without setuid, files cannot be uploaded by other users. Internally, the file is opened with O_NOATIME, and the effective UID is used for this for system reasons. However, this is the only way to synchronize files that was created by another user, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
 
 To ensure that the latest version is used, the system should be cleaned of old images or the `--no-cache` option should be used.
 
@@ -152,15 +153,15 @@ The synchronization can run under two different user contexts; (1) as the curren
    id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true --build-arg SUPP_GIDS="$(id -G ${FOR_USER} | tr ' ' ',')" -t chris82111/pcloudccdocker .
    ```
 
-   Depending on the application, it may be necessary to adjust the rights accordingly. Changes the owner of the created folders:
+   - Depending on the application, it may be necessary to adjust the rights accordingly. Changes the owner of the created folders:
 
-   ```bash
-   id "${FOR_USER}" && 
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Alice" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Bob" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config/pcloud"
-   ```
+     ```bash
+     id "${FOR_USER}" && 
+     sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Alice" &&
+     sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Bob" &&
+     sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config" &&
+     sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config/pcloud"
+     ```
 
 Before the next command, an old container should be removed. An error message stating that the container cannot be found can be ignored.
 
@@ -193,31 +194,19 @@ Connect to a running container to execute commands:
 docker exec -it pcloudccContainer bash
 ```
 
-Before setting up pCloud, the settings of the folders mounted in the container can be checked.
+- Before setting up pCloud, the settings of the folders mounted in the container can be checked.
 
-1. The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again. So, stop the container, log out, log back in, and start the container. The permissions should then be updated. 
+  ```bash
+  ll /sync/
+  ```
 
-2. Another problem may occur if the owner of the folder does not match. The problem has been seen on a Synology with a customized ACL. Make sure that the user matches. 
+  The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again. So, stop the container, log out, log back in, and start the container. The permissions should then be updated. 
 
-```bash
-ll /sync/
-```
-
-- A working output might then look like this:
+  A working output might then look like this:
 
   ```bash
   # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Alice/
   # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Bob/
-  ```
-
-  The following outputs, where the user does not match, can be problematic. pcloudcc will then be unable to add the folder for synchronization:
-
-  ```bash
-  # drwxrwxrwx 1 1026   user 0 Feb 21 21:21 Bob/
-  ```
-
-  ```bash
-  # drwxrwxrwx 1 root   root  28 Feb 21 21:12 Bob/
   ```
 
 Log in to pCloud with the following command:
@@ -332,7 +321,11 @@ These commands are used to interact with Docker on the system.
 - Log into container: \
   `docker exec -it pcloudccContainer bash`  
 - Stop and remove container: \
-  `docker stop pcloudccContainer && docker rm pcloudccContainer`
+  `docker stop pcloudccContainer && docker rm pcloudccContainer`  
+- Shows storage space: \
+  `docker system df`
+- Free up storage space, optional with `-a`: \
+  `docker system prune`
 
 ### Commands in the container
 
@@ -347,7 +340,7 @@ These commands are used in the container to access the background process.
 - Listing synchronized folders: \
   `printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null`
 - Add folders to synchronization: \
-  `printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev/null`
+  `printf "s add \"/<container_path>\" \"/<pCloud>\"\nq\n" | script -q -c "pcloudcc -k" /dev/null`
 - Leave the container: \
   `exit`
 
