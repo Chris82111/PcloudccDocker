@@ -31,25 +31,25 @@ Before compiling the Dockerfile, it is advisable to check that all Docker settin
    docker ps
    ```
 
-   The successful output contains at least the heading and all running images below it.
+   The successful output contains at least the heading and all running images below it. When you see the output, you can skip everything in the current section.
 
    ```bash
    CONTAINER ID  IMAGE  COMMAND  CREATED  STATUS  PORTS  NAMES
    ```
 
-   The incorrect output may look like this.
+   The incorrect output may look like this. If you see the error message, you must execute all of the following commands with `sudo`, or proceed to the next step.
 
    ```bash
    Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock: Get "http://%2Fvar%2Frun%2Fdocker.sock/v1.24/containers/json": dial unix /var/run/docker.sock: connect: permission denied
    ```
 
-3. Alternatively, a group can be created and the current user added to that group, eliminating the need to use sudo for subsequent commands. Membership in the docker group is essentially root-equivalent access, so treat the docker group as trusted users only. Depending on your system, you must select one of the following:
+3. Alternatively, a group can be created and a user added to that group, eliminating the need to use sudo for subsequent commands, (name of current user `$(id -un)`). Membership in the docker group is essentially root-equivalent access, so treat the docker group as trusted users only. Depending on your system, you must select one of the following:
 
    1. Standard Linux system   
 
       ```bash
       sudo groupadd -f docker
-      sudo usermod -aG docker "${USER}"
+      sudo usermod -aG docker "$(id -un)"
       ```
 
    2. The following commands must be used on a [Synology](https://www.synology.com/en-uk) system.
@@ -57,7 +57,7 @@ Before compiling the Dockerfile, it is advisable to check that all Docker settin
       ```bash
       sudo synogroup --add docker
       sudo chown root:docker /var/run/docker.sock
-      sudo synogroup --memberadd docker "${USER}"
+      sudo synogroup --memberadd docker "$(id -un)"
       ```
 
 4. Now you must log out and log back in, for the changes to take effect.
@@ -104,6 +104,8 @@ stateDiagram-v2
     }
 ```
 
+It is best to start in a folder where you want to try out the example. Change to any directory. You can clone the repository and change to the downloaded folder, or you can download the necessary files ([Dockerfile](./Dockerfile), [entrypoint.sh](./entrypoint.sh), and [.dockerignore](./.dockerignore)).
+
 Three folders are required on the system: two that are synchronized and one for configuration. A Docker container without volumes or mounts does not retain any data after termination. The paths in the example can be freely selected and thus customized.
 
 ```bash
@@ -114,47 +116,56 @@ mkdir -p "./.config/pcloud"
 
 Next, the Docker container must be built. The easiest way to do this is in the folder where the [Dockerfile](./Dockerfile) is located, i.e., directly in the cloned repository. If a different folder is used, the path to the Dockerfile must be specified.
 
-A parameter mentioned here, `--build-arg TAG=""`, can be used to select a specific version of the repository. An empty or missing parameter selects the latest version.
+- A parameter mentioned here, `--build-arg TAG=""`, can be used to select a specific version of the repository. An empty or missing parameter selects the latest version.
+- If multiple pCloud accounts are to be synchronized on one system, the commands must be executed for each user.
+- The parameter `SETUID_ROOT` can be set to true; the default is false. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). Currently, pcloudcc only uses the UID and GID internally, not the effective IDs. For this reason, it is necessary to set the access rights for folders correctly, even though setuid is set.
+Without setuid, files cannot be uploaded by other users. Internally, the file is opened with O_NOATIME, and the effective UID is used for this for system reasons. However, this is the only way to synchronize files that was created by another user, as with shared folders on Synology. Downloaded data is assigned root as the owner and the selected user as the group (If this is a problem, then it must be changed in the source code of pcloudcc). The data can therefore still be read by the user. On systems with a graphical user interface, e.g., [Ubuntu](https://ubuntu.com/desktop), the files are marked with an 'x', which is graphically unattractive. However, they can be used normally. \
+Use `--build-arg SETUID_ROOT=true` if you want to back up all data, regardless of the owner.
+- To ensure that the latest version is used, the system should be cleaned of old images or the `--no-cache` option should be used.
 
-The synchronization can run under two different user contexts; (1) as the current user, or (2) as the current user with the effective user ID set to root (setuid).
+The email must be set up so that the commands can be easily copied later. Enter your own email address here instead of 'Example@example.com':
 
-1. Depending on which user the synchronization is to be set up for, the parameters must be set differently. If we set up synchronization for the current user, the following command can be used. The subsequent container can then only synchronize the user's data. Perfect for a local user, e.g., a computer running [Ubuntu](https://ubuntu.com/desktop) like option (1):
+```bash
+FOR_EMAIL="Example@example.com"
+```
+
+The synchronization can run under two different user contexts; (1) as the current user, or (2) as another user. Depending on which user the synchronization is to be set up for, the parameters must be set differently.
+
+1. If we set up synchronization for the current user, the following command can be used:
 
    ```bash
-   docker build --build-arg UID=$(id -u) --build-arg GID=$(id -g) -t chris82111/pcloudccdocker:260216 .
+   FOR_USER="$(whoami)"
    ```
 
-2. Alternatively, synchronization can be set up for another user as in option (2). The user ID `UID` and group ID `GID` must be set correctly. These can be determined with `id <username>`. 
-  
-   The parameter `SETUID_ROOT` can be set to `true`; the default is `false`. This starts the process with admin rights, which allows files to be uploaded by any user (including root data, which can pose a risk; pay attention to the folder that is mounted). Downloaded data is assigned `root` as the owner and the selected user as the group. The data can therefore still be read by the user. On systems with a graphical user interface, e.g., Ubuntu, the files are marked with an 'x', which is graphically unattractive. However, they can be used normally.
-
-   Set user name:
+2. Alternatively, synchronization can be set up for another user, Enter any username on your system here instead of 'ubuntu':
 
    ```bash
    FOR_USER="ubuntu"
    ```
 
-   Checks whether the user has access to the current directory:
+   The ID can also be set to 0 (root), but then the name must also be specified: `--build-arg USE_USER=root`.
 
-   ```bash
-   id "${FOR_USER}" && sudo -u "${FOR_USER}" sh -c 'test -r . && test -w . && test -x .' && echo "ok" || echo "error"
-   ```
+Optionally, you can check whether the user has access to the current directory. If "ok" is displayed, everything is fine, but if "error" is displayed, the directory permissions must be adjusted.
 
-   Creates the container:
+```bash
+id "${FOR_USER}" && sudo -u "${FOR_USER}" sh -c 'test -r . && test -w . && test -x .' && echo "ok" || echo "error"
+```
 
-   ```bash
-   id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=true -t chris82111/pcloudccdocker:260216 .
-   ```
+Creates the container:
 
-   Changes the owner of the created folders:
+```bash
+id "${FOR_USER}" && docker build --build-arg UID=$(id -u "${FOR_USER}") --build-arg GID=$(id -g "${FOR_USER}") --build-arg SETUID_ROOT=false --build-arg SUPP_GIDS="$(id -G ${FOR_USER} | tr ' ' ',')" -t chris82111/pcloudccdocker .
+```
 
-   ```bash
-   id "${FOR_USER}" && 
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Alice" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Bob" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config" &&
-   sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config/pcloud"
-   ```
+- Depending on the application, it may be necessary to adjust the rights accordingly. Changes the owner of the created folders:
+
+  ```bash
+  id "${FOR_USER}" && 
+  sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Alice" &&
+  sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./Bob" &&
+  sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config" &&
+  sudo chown $(id -u "${FOR_USER}"):$(id -g "${FOR_USER}") "./.config/pcloud"
+  ```
 
 Before the next command, an old container should be removed. An error message stating that the container cannot be found can be ignored.
 
@@ -162,7 +173,7 @@ Before the next command, an old container should be removed. An error message st
 docker stop pcloudccContainer && docker rm pcloudccContainer
 ```
 
-The container itself is created based on the image, which is why adjustments need to be made here. Enter your own email address here instead of `Example@example.com`:
+The container itself is created based on the image, which is why adjustments need to be made here.
 
 ```bash
 docker container create -it --name pcloudccContainer \
@@ -171,8 +182,8 @@ docker container create -it --name pcloudccContainer \
   --mount type=bind,source="$(pwd)/.config/pcloud",target="/home/ubuntu/.pcloud" \
   --device /dev/fuse --cap-add SYS_ADMIN --security-opt apparmor:unconfined \
   --restart always  \
-  --env EMAIL='Example@example.com' \
-  chris82111/pcloudccdocker:260216
+  --env EMAIL="${FOR_EMAIL}" \
+  chris82111/pcloudccdocker
 ```
 
 The container must then be started:
@@ -187,24 +198,39 @@ Connect to a running container to execute commands:
 docker exec -it pcloudccContainer bash
 ```
 
-Log in with the following command:
+- Before setting up pCloud, the settings of the folders mounted in the container can be checked.
+
+  ```bash
+  ll /sync/
+  ```
+
+  The permissions must be at least `drw-------` for two-way synchronization to work. If this is not the case, the user's permissions on the host system must be adjusted. Please note that changes will only be updated after you log out and log back in again. So, stop the container, log out, log back in, and start the container. The permissions should then be updated. 
+
+  A working output might then look like this:
+
+  ```bash
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Alice/
+  # drwxrwxrwx 1 ubuntu user 0 Feb 21 21:21 Bob/
+  ```
+
+Log in to pCloud with the following command:
 
 ```bash
 PCLOUD_REGION_EU=true pcloudcc -u "${EMAIL}" -p -s
 ```
 
-The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you can end the login by pressing the two keys "Ctrl" + "c" simultaneously:
+The program will prompt you to enter your password. If everything worked, you will see the following output. After entering the password, you must end the login by pressing the two keys "Ctrl" + "c" simultaneously to proceed:
 
 ```bash
 Down: Everything Downloaded| Up: Everything Uploaded, status is LOGIN_REQUIRED
 logging in
-event 1234567890
-event 1234567890
+event 123456789a
+event 123456789a
 Down: Everything Downloaded| Up: Everything Uploaded, status is SCANNING
 Down: Everything Downloaded| Up: Everything Uploaded, status is READY
 ```
 
-- Error messages may be displayed when exiting. The pcloudcc application creates a directory in the home directory (`ubuntu`) that contains a complete copy of the cloud. The results vary depending on the kernel. With a kernel 6.x, there were no error messages and no content in the directory. With a 3.x, there was data in the directory and the following message:
+- Error messages may be displayed when exiting or with the output. The following error messages can be ignored. The pcloudcc application creates a directory in the home directory (`ubuntu`) that contains a complete copy of the cloud. The results vary depending on the kernel. With a kernel 6.x, there were no error messages and no content in the directory. With a 3.x, there was data in the directory and the following message:
 
   ```bash
   fuse: reading device: Bad file descriptor  
@@ -238,6 +264,18 @@ printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev
 printf "s add \"/sync/Bob\" \"/Bob\"\nq\n" | script -q -c "pcloudcc -k" /dev/null
 ```
 
+- If something is wrong, a drive can be removed. To do this, list the drives and find the corresponding folder ID with:
+
+  ```bash
+  printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null
+  ```
+
+  The drive can be removed using the following command with the ID. Replace the ID 123456789ab with your displayed ID:
+
+  ```bash
+  printf "s rm 123456789ab\nq\n" | script -q -c "pcloudcc -k" /dev/null
+  ```
+
 You can check whether the folders have been added successfully:
 
 ```bash
@@ -258,6 +296,20 @@ The status of the container and others can be checked with the following command
 docker ps
 ```
 
+The following command can be used to check how much storage space is being used by Docker:
+
+```bash
+docker system df
+```
+
+To free up storage space, the following command can be used to release only unused (dangling) resources. The additional parameter `-a` removes all unused images.
+
+```bash
+docker system prune
+```
+
+Deleting is particularly important because the individual steps involved in creating the image are cached. If the image is recreated, no new code is downloaded from GitHub. Even if a new image is created years later, the old version is used without retrieving the latest changes.
+
 ## List of commands
 
 ### Commands on the system
@@ -273,7 +325,11 @@ These commands are used to interact with Docker on the system.
 - Log into container: \
   `docker exec -it pcloudccContainer bash`  
 - Stop and remove container: \
-  `docker stop pcloudccContainer && docker rm pcloudccContainer`
+  `docker stop pcloudccContainer && docker rm pcloudccContainer`  
+- Shows storage space: \
+  `docker system df`
+- Free up storage space, optional with `-a`: \
+  `docker system prune`
 
 ### Commands in the container
 
@@ -288,7 +344,7 @@ These commands are used in the container to access the background process.
 - Listing synchronized folders: \
   `printf "s ls\nq\n" | script -q -c "pcloudcc -k" /dev/null`
 - Add folders to synchronization: \
-  `printf "s add \"/sync/Alice\" \"/Alice\"\nq\n" | script -q -c "pcloudcc -k" /dev/null`
+  `printf "s add \"/<container_path>\" \"/<pCloud>\"\nq\n" | script -q -c "pcloudcc -k" /dev/null`
 - Leave the container: \
   `exit`
 
