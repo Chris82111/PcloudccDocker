@@ -167,6 +167,7 @@ RUN set -eux; \
 
 
 ARG SUPP_GIDS=""
+ENV SUPP_GIDS="${SUPP_GIDS}"
 
 # ---------- SUPPLEMENTARY GROUPS ----------
 RUN set -eux; \
